@@ -18,7 +18,6 @@
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "Position.h"
-#include "Config.h"
 
 uint32 const FISHING_SPELL = 7620;
 uint32 const FISHING_POLE = 6256;
@@ -433,23 +432,49 @@ bool FishingAction::Execute(Event event)
 
 bool FishingAction::isUseful()
 {
-    if (!AI_VALUE(bool, "can fish"))
+    // 1. Can fish?
+    bool canFish = AI_VALUE(bool, "can fish");
+    if (!canFish)
+    {
+        LOG_ERROR("playerbots", "[%s] Fishing USELESS: cannot fish", bot->GetName().c_str());
         return false;
+    }
 
+    // 2. Fishing spot
     FishingSpotValue* fishingSpotValueObject = (FishingSpotValue*)context->GetValue<WorldPosition>("fishing spot");
     WorldPosition pos = fishingSpotValueObject->Get();
 
-    if (!pos.IsValid() || fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT))
+    if (!pos.IsValid())
+    {
+        LOG_ERROR("playerbots", "[%s] Fishing USELESS: no fishing spot", bot->GetName().c_str());
         return false;
+    }
 
-    // ИСПРАВЛЕНИЕ: допуск 1.5 метра вместо точного совпадения
+    if (fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT))
+    {
+        LOG_ERROR("playerbots", "[%s] Fishing USELESS: fishing spot stale", bot->GetName().c_str());
+        return false;
+    }
+
+    // 3. Position match (ПРОБЛЕМА ЗДЕСЬ)
     float posX, posY, posZ;
     pos.GetPosition(posX, posY, posZ);
     float botX, botY, botZ;
     bot->GetPosition(botX, botY, botZ);
+    float dist = sqrt(pow(posX - botX, 2) + pow(posY - botY, 2));
 
-    return (fabs(posX - botX) < 1.5f && fabs(posY - botY) < 1.5f && fabs(posZ - botZ) < 1.5f);
+    LOG_DEBUG("playerbots", "[%s] Fishing spot dist: %.2fm (need 0.0m)", bot->GetName().c_str(), dist);
+
+    if (pos != bot->GetPosition())
+    {
+        LOG_ERROR("playerbots", "[%s] Fishing USELESS: pos!=bot (dist=%.2fm)", bot->GetName().c_str(), dist);
+        return false;
+    }
+
+    LOG_DEBUG("playerbots", "[%s] FishingAction USEFUL!", bot->GetName().c_str());
+    return true;
 }
+
 
 bool UseBobberAction::isUseful()
 {
