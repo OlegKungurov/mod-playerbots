@@ -18,6 +18,7 @@
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "Position.h"
+#include "Config.h"
 
 uint32 const FISHING_SPELL = 7620;
 uint32 const FISHING_POLE = 6256;
@@ -432,61 +433,24 @@ bool FishingAction::Execute(Event event)
 
 bool FishingAction::isUseful()
 {
-    LOG_DEBUG("playerbots", "[%s] FishingAction::isUseful() START", bot->GetName().c_str());
-
-    // 1. Can fish?
-    bool canFish = AI_VALUE(bool, "can fish");
-    LOG_DEBUG("playerbots", "  Can fish: %s", canFish ? "YES" : "NO");
-    if (!canFish)
-    {
-        LOG_ERROR("playerbots", "[%s] USELESS: cannot fish", bot->GetName().c_str());
+    if (!AI_VALUE(bool, "can fish"))
         return false;
-    }
 
-    // 2. Fishing spot
     FishingSpotValue* fishingSpotValueObject = (FishingSpotValue*)context->GetValue<WorldPosition>("fishing spot");
     WorldPosition pos = fishingSpotValueObject->Get();
 
-    bool posValid = pos.IsValid();
-    bool notStale = !fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT);
-    LOG_DEBUG("playerbots", "  Spot valid: %s, stale: %s", posValid ? "YES" : "NO", notStale ? "NO" : "YES");
-
-    if (!posValid || !notStale)
-    {
-        LOG_ERROR("playerbots", "[%s] USELESS: spot invalid/stale", bot->GetName().c_str());
+    if (!pos.IsValid() || fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT))
         return false;
-    }
 
-    // 3. СТАРЫЙ КОД (строгое сравнение)
-    bool strictMatch = (pos == bot->GetPosition());
-    LOG_DEBUG("playerbots", "  STRICT MATCH (pos == bot): %s", strictMatch ? "YES" : "NO");
-
-    // 4. НОВЫЙ КОД (2м допуск)
     float posX, posY, posZ;
     pos.GetPosition(posX, posY, posZ);
     float botX, botY, botZ;
     bot->GetPosition(botX, botY, botZ);
+
     float dist2d = sqrt(powf(posX - botX, 2) + powf(posY - botY, 2));
-    bool tolerantMatch = (dist2d < 2.0f);
-
-    LOG_DEBUG("playerbots", "  2m TOLERANCE (dist=%.2fm): %s", dist2d, tolerantMatch ? "YES" : "NO");
-    LOG_DEBUG("playerbots", "  Bot: (%.1f,%.1f) Spot: (%.1f,%.1f)", botX, botY, posX, posY);
-
-    // ИСПОЛЬЗУЕМ НОВЫЙ АЛГОРИТМ
-    bool result = tolerantMatch;
-
-    if (result)
-    {
-        LOG_DEBUG("playerbots", "[%s] FishingAction USEFUL! (2m fix)", bot->GetName().c_str());
-    }
-    else
-    {
-        LOG_ERROR("playerbots", "[%s] USELESS: dist=%.2fm > 2m limit", bot->GetName().c_str(), dist2d);
-    }
-
-    LOG_DEBUG("playerbots", "[%s] FishingAction END: %s", bot->GetName().c_str(), result ? "TRUE" : "FALSE");
-    return result;
+    return dist2d < 2.0f;
 }
+
 
 
 
