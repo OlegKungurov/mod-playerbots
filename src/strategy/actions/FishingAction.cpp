@@ -18,6 +18,7 @@
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "Position.h"
+#include "Config.h"
 
 uint32 const FISHING_SPELL = 7620;
 uint32 const FISHING_POLE = 6256;
@@ -434,10 +435,20 @@ bool FishingAction::isUseful()
 {
     if (!AI_VALUE(bool, "can fish"))
         return false;
+
     FishingSpotValue* fishingSpotValueObject = (FishingSpotValue*)context->GetValue<WorldPosition>("fishing spot");
     WorldPosition pos = fishingSpotValueObject->Get();
 
-    return pos.IsValid() && !fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT) && pos == bot->GetPosition();
+    if (!pos.IsValid() || fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT))
+        return false;
+
+    // ИСПРАВЛЕНИЕ: допуск 1.5 метра вместо точного совпадения
+    float posX, posY, posZ;
+    pos.GetPosition(posX, posY, posZ);
+    float botX, botY, botZ;
+    bot->GetPosition(botX, botY, botZ);
+
+    return (fabs(posX - botX) < 1.5f && fabs(posY - botY) < 1.5f && fabs(posZ - botZ) < 1.5f);
 }
 
 bool UseBobberAction::isUseful()
