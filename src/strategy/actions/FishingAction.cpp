@@ -451,9 +451,6 @@ bool FishingAction::isUseful()
     return dist2d < 2.0f;
 }
 
-
-
-
 bool UseBobberAction::isUseful()
 {
     return AI_VALUE(bool, "can use fishing bobber");
