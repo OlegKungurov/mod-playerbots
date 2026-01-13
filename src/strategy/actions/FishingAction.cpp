@@ -18,7 +18,6 @@
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "Position.h"
-#include "Config.h"
 
 uint32 const FISHING_SPELL = 7620;
 uint32 const FISHING_POLE = 6256;
@@ -262,7 +261,9 @@ bool MoveNearWaterAction::isUseful()
         return false;
     FishingSpotValue* fishingSpotValueObject = (FishingSpotValue*)context->GetValue<WorldPosition>("fishing spot");
     WorldPosition pos = fishingSpotValueObject->Get();
-    return !pos.IsValid() || fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT) || pos != bot->GetPosition();
+    return !pos.IsValid() || fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT) ||
+           bot->GetExactDist(&pos) < 0.1f;
+
 }
 
 bool MoveNearWaterAction::isPossible()
@@ -299,6 +300,17 @@ bool MoveNearWaterAction::isPossible()
                 return true;
             }
         }
+    }
+    // Can the bot fish from current position?
+    WorldPosition waterAtCurrentPos =
+        FindWaterRadial(bot, bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ(), bot->GetMap(),
+                        bot->GetPhaseMask(), MIN_DISTANCE_TO_WATER, MAX_DISTANCE_TO_WATER, SEARCH_INCREMENT, true);
+    if (waterAtCurrentPos.IsValid())
+    {
+        SET_AI_VALUE(WorldPosition, "fishing spot",
+                     WorldPosition(WorldPosition(bot->GetMapId(), bot->GetPositionX(), bot->GetPositionY(),
+                                                 bot->GetPositionZ())));
+        return false;
     }
     // Lets find some water where we can fish.
     WorldPosition water = FindWaterRadial(
@@ -442,13 +454,7 @@ bool FishingAction::isUseful()
     if (!pos.IsValid() || fishingSpotValueObject->IsStale(FISHING_LOCATION_TIMEOUT))
         return false;
 
-    float posX, posY, posZ;
-    pos.GetPosition(posX, posY, posZ);
-    float botX, botY, botZ;
-    bot->GetPosition(botX, botY, botZ);
-
-    float dist2d = sqrt(powf(posX - botX, 2) + powf(posY - botY, 2));
-    return dist2d < 2.0f;
+    return bot->GetExactDist(&pos) < 0.1f;
 }
 
 bool UseBobberAction::isUseful()
